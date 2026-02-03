@@ -1,0 +1,61 @@
+# Git
+.git
+.gitignore
+
+# Python virtual environments
+venv/
+.venv/
+ENV/
+env/
+backend/venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Node modules (frontend will install fresh in Docker)
+frontend/node_modules/
+
+# Frontend build output (will be built fresh in Docker)
+frontend/dist/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Environment files (sensitive - should use Railway Variables)
+.env
+.env.*
+backend/.env
+backend/.env.*
+
+# Documentation
+# *.md
+# !README.md
+
+# Tests (not needed in production image)
+tests/
+pytest.ini
+.pytest_cache/
+
+# GitHub Actions
+.github/
+
+# Cursor/Editor specific
+.cursor/

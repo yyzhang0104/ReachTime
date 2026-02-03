@@ -1,0 +1,17 @@
+# Application Configuration
+# This file contains non-sensitive application settings.
+# Sensitive credentials (API keys) should be in .env file.
+
+# OpenAI Configuration
+openai:
+  model: gpt-4o-mini  # Options: gpt-4o-mini, gpt-4o, gpt-4.1-mini, etc.
+
+# CORS Configuration
+# Add your Netlify domain in production
+cors:
+  allow_origins:
+    - "http://localhost:3000"      # Frontend dev server
+    - "http://localhost:5173"      # Alternative Vite port
+    - "http://127.0.0.1:3000"
+    # Add your production domain below:
+    # - "https://your-app.netlify.app"
