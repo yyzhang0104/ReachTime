@@ -46,7 +46,7 @@ A professional web application to help cross-timezone sales teams contact custom
 
 ### 2. Real-time Dashboard
 - Dynamic timezone header with Travel Mode
-- Red/Green availability indicators based on working hours and preferences
+- Availability indicators based on working hours and preferences
 - Today's Focus list for prioritized contacts
 - Smart sorting by availability
 
