@@ -45,16 +45,18 @@ from app.schemas import (
     ExtractPreferencesResponse,
     HolidayStatusRequest,
     HolidayStatusResponse,
+    HolidayStatusBatchRequest,
+    HolidayMapResponse,
     ErrorResponse,
 )
 from app.services.openai_client import generate_draft
 from app.services.preferences_client import extract_preferences
-from app.services.holiday_service import get_holiday_status
+from app.services.holiday_service import get_holiday_status, get_holidays_for_dates
 
 
 # Initialize FastAPI app with /api prefix for docs
 app = FastAPI(
-    title="GlobalSync CRM API",
+    title="ReachTime API",
     description="基于 OpenAI 的商务沟通文案生成、偏好抽取与节假日查询服务",
     version="1.2.0",
     docs_url="/api/docs",
@@ -80,7 +82,7 @@ app.add_middleware(
 @app.get("/api/health", tags=["Health"])
 async def health_check():
     """Health check endpoint for Railway and monitoring."""
-    return {"status": "ok", "message": "GlobalSync CRM API is running"}
+    return {"status": "ok", "message": "ReachTime API is running"}
 
 
 @app.post(
@@ -281,6 +283,74 @@ async def check_holiday_status(
         )
 
 
+@app.post(
+    "/api/holiday_status_batch",
+    response_model=HolidayMapResponse,
+    responses={
+        400: {"model": ErrorResponse, "description": "Bad Request - Invalid input"},
+        500: {"model": ErrorResponse, "description": "Internal Server Error"},
+    },
+    tags=["Holiday Status"],
+    summary="批量查询多个日期的节假日状态",
+    description="""
+    批量查询客户所在国家的多个日期是否为公共节假日。
+    使用 Nager.Date API 获取节假日数据，按年份缓存以减少外部调用。
+
+    - **country_code**: ISO 2字母国家代码（必填，如 'US', 'CN', 'JP'）
+    - **dates**: 要查询的日期列表，格式 YYYY-MM-DD（必填，最多 60 个）
+    
+    返回仅包含节假日的日期映射（date -> holiday_name），非节假日不返回。
+    """,
+)
+async def check_holiday_status_batch(
+    request: HolidayStatusBatchRequest,
+) -> HolidayMapResponse:
+    """
+    Batch check if multiple dates are public holidays for a given country.
+    Returns only the dates that are holidays (date -> holiday_name mapping).
+    Uses per-year caching to minimize Nager.Date API calls.
+    """
+    try:
+        holidays, is_supported = await get_holidays_for_dates(
+            country_code=request.country_code,
+            dates=request.dates,
+        )
+        return HolidayMapResponse(
+            holidays=holidays,
+            is_supported_country=is_supported,
+        )
+
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail=str(e),
+        )
+
+    except httpx.TimeoutException:
+        raise HTTPException(
+            status_code=504,
+            detail="节假日查询超时，请稍后重试。",
+        )
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"节假日服务不可用：{e.response.status_code}",
+        )
+
+    except httpx.HTTPError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"节假日服务连接失败：{str(e)}",
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"发生未知错误：{str(e)}",
+        )
+
+
 # =============================================================================
 # Static Files & SPA Fallback (Frontend serving)
 # =============================================================================
@@ -321,6 +391,6 @@ else:
         """Development mode root endpoint."""
         return {
             "status": "ok",
-            "message": "GlobalSync CRM API (dev mode - no frontend)",
+            "message": "ReachTime API (dev mode - no frontend)",
             "api_docs": "/api/docs",
         }

@@ -9,11 +9,11 @@
 import { formatInTimeZone, toZonedTime, fromZonedTime } from 'date-fns-tz';
 import { setHours, setMinutes, startOfDay, addDays, addMinutes } from 'date-fns';
 import type { Customer, ScheduleRecommendation, ExtractedPreferences, Weekday } from '@/types';
-import { getHolidayStatus } from '@/services/apiClient';
+import { getHolidayMapBatch } from '@/services/apiClient';
 
 // Default working hours (customer and user)
 const DEFAULT_WORK_START = 9;
-const DEFAULT_WORK_END = 18;
+const DEFAULT_WORK_END = 17;
 
 // User work hours (fixed for MVP)
 const USER_WORK_START = 9;
@@ -146,15 +146,17 @@ function getUserFriendlinessScore(userHour: number): number {
 }
 
 /**
- * Check if a candidate date/time is valid based on all constraints
+ * Check if a candidate date/time is valid based on all constraints.
+ * Uses pre-fetched holiday set for O(1) holiday lookup (no API calls).
  */
-async function isValidCandidate(
+function isValidCandidate(
   candidateDate: Date,
   customer: Customer,
   extractedPrefs: ExtractedPreferences | null,
   workStart: number,
   workEnd: number,
-): Promise<{ valid: boolean; isHoliday: boolean; isWeekend: boolean }> {
+  holidayDates: Set<string>, // Pre-fetched from batch API
+): { valid: boolean; isHoliday: boolean; isWeekend: boolean } {
   const customerTimezone = customer.timezone;
   const dayOfWeek = getDayOfWeekInTimezone(candidateDate, customerTimezone);
   const customerHour = getHourInTimezone(candidateDate, customerTimezone);
@@ -166,19 +168,10 @@ async function isValidCandidate(
     return { valid: false, isHoliday: false, isWeekend: true };
   }
   
-  // Check holiday via backend
-  let isHoliday = false;
-  try {
-    const holidayStatus = await getHolidayStatus({
-      country_code: customer.country,
-      date: dateStr,
-    });
-    isHoliday = holidayStatus.is_holiday;
-    if (isHoliday) {
-      return { valid: false, isHoliday: true, isWeekend: false };
-    }
-  } catch {
-    // If holiday check fails, continue without holiday filtering
+  // Check holiday using pre-fetched set (O(1) lookup, no API call)
+  const isHoliday = holidayDates.has(dateStr);
+  if (isHoliday) {
+    return { valid: false, isHoliday: true, isWeekend: false };
   }
   
   // Check if within customer work hours
@@ -317,6 +310,8 @@ function generateCandidates(
  * 2. preferredHours > LLM extracted preferences (soft constraints for ranking)
  * 3. User work time priority; non-overlap uses friendliness ordering
  * 
+ * Performance: Uses batch holiday API to reduce HTTP round-trips from O(n) to O(1).
+ * 
  * @param customer - The customer to schedule for
  * @param userTimezone - The user's current timezone
  * @param focusItem - Optional focus item with cached LLM preferences
@@ -357,6 +352,29 @@ export async function getNextAvailableWindow(
     };
   }
   
+  // ========== BATCH HOLIDAY FETCH ==========
+  // Extract unique dates from candidates (in customer timezone) for batch API call
+  const uniqueDates = new Set<string>();
+  for (const candidate of candidates) {
+    const dateStr = getDateStringInTimezone(candidate, customer.timezone);
+    uniqueDates.add(dateStr);
+  }
+  
+  // Fetch all holidays for these dates in one batch request
+  let holidayDates = new Set<string>();
+  try {
+    const holidayResponse = await getHolidayMapBatch({
+      country_code: customer.country,
+      dates: Array.from(uniqueDates),
+    });
+    // Convert holidays map keys to a Set for O(1) lookup
+    holidayDates = new Set(Object.keys(holidayResponse.holidays));
+  } catch {
+    // If batch holiday fetch fails, fail-open: treat as no holidays
+    // (holidayDates remains empty set)
+  }
+  // ========== END BATCH HOLIDAY FETCH ==========
+  
   // Evaluate candidates
   interface ScoredCandidate {
     time: Date;
@@ -370,12 +388,14 @@ export async function getNextAvailableWindow(
   const validCandidates: ScoredCandidate[] = [];
   
   for (const candidate of candidates) {
-    const validation = await isValidCandidate(
+    // isValidCandidate is now synchronous with pre-fetched holidayDates
+    const validation = isValidCandidate(
       candidate,
       customer,
       extractedPrefs,
       workStart,
-      workEnd
+      workEnd,
+      holidayDates,
     );
     
     if (!validation.valid) continue;
@@ -583,7 +603,7 @@ export function showNotification(title: string, body: string): void {
     new Notification(title, {
       body,
       icon: '/favicon.ico',
-      tag: 'globalsync-reminder',
+      tag: 'reachtime-reminder',
     });
   }
 }

@@ -12,6 +12,8 @@ import type {
   ExtractedPreferences,
   HolidayStatusRequest,
   HolidayStatusResponse,
+  HolidayStatusBatchRequest,
+  HolidayMapResponse,
 } from '@/types';
 
 // Default to same-origin /api for production; override with VITE_API_BASE_URL for dev
@@ -91,6 +93,32 @@ export async function getHolidayStatus(
   request: HolidayStatusRequest
 ): Promise<HolidayStatusResponse> {
   const response = await fetch(`${API_BASE_URL}/holiday_status`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(request),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+    throw new ApiError(response.status, errorData.detail || `HTTP ${response.status}`);
+  }
+
+  return response.json();
+}
+
+/**
+ * Batch check if multiple dates are public holidays for a given country.
+ * Returns only the dates that are holidays (date -> holiday_name mapping).
+ * 
+ * @param request - country_code and array of dates (YYYY-MM-DD format)
+ * @returns HolidayMapResponse with holidays dict (only holiday dates included)
+ */
+export async function getHolidayMapBatch(
+  request: HolidayStatusBatchRequest
+): Promise<HolidayMapResponse> {
+  const response = await fetch(`${API_BASE_URL}/holiday_status_batch`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

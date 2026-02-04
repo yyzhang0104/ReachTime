@@ -197,6 +197,180 @@ def test_holiday_status_invalid_date_value(client):
 
 
 # =============================================================================
+# Tests: Holiday Status Batch (Mocked Nager.Date)
+# =============================================================================
+
+def test_holiday_status_batch_returns_only_holidays(client):
+    """Test /api/holiday_status_batch returns only dates that are holidays."""
+    
+    async def mock_fetch_holidays(country_code: str, year: int) -> Dict[str, str]:
+        """Return mock holiday data."""
+        return MOCK_HOLIDAYS
+    
+    with patch(
+        "app.services.holiday_service._fetch_holidays_from_nager",
+        new=mock_fetch_holidays
+    ):
+        from app.services.holiday_service import _holiday_cache
+        _holiday_cache.clear()
+        
+        # Request 4 dates: 2 holidays (01-01, 07-04) and 2 non-holidays (01-02, 01-05)
+        response = client.post(
+            "/api/holiday_status_batch",
+            json={
+                "country_code": "US",
+                "dates": ["2026-01-01", "2026-01-02", "2026-01-05", "2026-07-04"]
+            }
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Check structure
+        assert "holidays" in data
+        assert "is_supported_country" in data
+        
+        # Only holidays should be returned
+        assert data["is_supported_country"] is True
+        assert len(data["holidays"]) == 2
+        assert data["holidays"]["2026-01-01"] == "New Year's Day"
+        assert data["holidays"]["2026-07-04"] == "Independence Day"
+        
+        # Non-holidays should NOT be in the response
+        assert "2026-01-02" not in data["holidays"]
+        assert "2026-01-05" not in data["holidays"]
+
+
+def test_holiday_status_batch_no_holidays(client):
+    """Test /api/holiday_status_batch returns empty holidays dict when no holidays in dates."""
+    
+    async def mock_fetch_holidays(country_code: str, year: int) -> Dict[str, str]:
+        return MOCK_HOLIDAYS  # Has holidays, but not for the dates we'll query
+    
+    with patch(
+        "app.services.holiday_service._fetch_holidays_from_nager",
+        new=mock_fetch_holidays
+    ):
+        from app.services.holiday_service import _holiday_cache
+        _holiday_cache.clear()
+        
+        # Request dates that are not holidays
+        response = client.post(
+            "/api/holiday_status_batch",
+            json={
+                "country_code": "US",
+                "dates": ["2026-01-02", "2026-01-05", "2026-02-10"]
+            }
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Empty holidays dict
+        assert data["holidays"] == {}
+        assert data["is_supported_country"] is True
+
+
+def test_holiday_status_batch_unsupported_country(client):
+    """Test /api/holiday_status_batch with unsupported country returns empty holidays."""
+    
+    # No need to mock - unsupported countries don't make API calls
+    response = client.post(
+        "/api/holiday_status_batch",
+        json={
+            "country_code": "XX",  # Invalid/unsupported country
+            "dates": ["2026-01-01", "2026-07-04"]
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    
+    # Empty holidays, unsupported country flag
+    assert data["holidays"] == {}
+    assert data["is_supported_country"] is False
+
+
+def test_holiday_status_batch_empty_dates_rejected(client):
+    """Test /api/holiday_status_batch rejects empty dates list."""
+    response = client.post(
+        "/api/holiday_status_batch",
+        json={
+            "country_code": "US",
+            "dates": []  # Empty list, violates min_length=1
+        }
+    )
+    
+    # Pydantic validation should reject with 422
+    assert response.status_code == 422
+
+
+def test_holiday_status_batch_invalid_date_format(client):
+    """Test /api/holiday_status_batch with invalid date format returns 400."""
+    
+    async def mock_fetch_holidays(country_code: str, year: int) -> Dict[str, str]:
+        return {}
+    
+    with patch(
+        "app.services.holiday_service._fetch_holidays_from_nager",
+        new=mock_fetch_holidays
+    ):
+        from app.services.holiday_service import _holiday_cache
+        _holiday_cache.clear()
+        
+        # Note: the batch endpoint validates date format in the service layer
+        # (not via Pydantic regex for each item in the list for simplicity)
+        response = client.post(
+            "/api/holiday_status_batch",
+            json={
+                "country_code": "US",
+                "dates": ["2026-01-01", "invalid-date", "2026-02-02"]
+            }
+        )
+        
+        # Backend ValueError from parsing invalid date -> 400
+        assert response.status_code == 400
+
+
+def test_holiday_status_batch_cross_year(client):
+    """Test /api/holiday_status_batch correctly handles dates across multiple years."""
+    
+    mock_holidays_multi_year = {
+        "2025-12-25": "Christmas Day 2025",
+        "2026-01-01": "New Year's Day",
+        "2026-12-25": "Christmas Day 2026",
+    }
+    
+    async def mock_fetch_holidays(country_code: str, year: int) -> Dict[str, str]:
+        """Return holidays for the requested year only."""
+        return {k: v for k, v in mock_holidays_multi_year.items() if k.startswith(str(year))}
+    
+    with patch(
+        "app.services.holiday_service._fetch_holidays_from_nager",
+        new=mock_fetch_holidays
+    ):
+        from app.services.holiday_service import _holiday_cache
+        _holiday_cache.clear()
+        
+        # Request dates across 2025 and 2026
+        response = client.post(
+            "/api/holiday_status_batch",
+            json={
+                "country_code": "US",
+                "dates": ["2025-12-25", "2025-12-26", "2026-01-01", "2026-01-02"]
+            }
+        )
+        
+        assert response.status_code == 200
+        data = response.json()
+        
+        # Should find holidays from both years
+        assert len(data["holidays"]) == 2
+        assert data["holidays"]["2025-12-25"] == "Christmas Day 2025"
+        assert data["holidays"]["2026-01-01"] == "New Year's Day"
+
+
+# =============================================================================
 # Tests: Generate Draft (Mocked OpenAI)
 # =============================================================================
 

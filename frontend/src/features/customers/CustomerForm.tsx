@@ -181,7 +181,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name *</label>
               <input
                 required
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="e.g. John Smith"
@@ -190,7 +190,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Company</label>
               <input
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 value={formData.company}
                 onChange={(e) => setFormData({ ...formData, company: e.target.value })}
                 placeholder="e.g. Acme Corp"
@@ -203,7 +203,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Country</label>
               <select
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 value={formData.country}
                 onChange={(e) => setFormData({ ...formData, country: e.target.value })}
               >
@@ -217,7 +217,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Timezone</label>
               <select
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
                 value={formData.timezone}
                 onChange={(e) => setFormData({ ...formData, timezone: e.target.value })}
               >
@@ -241,7 +241,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
               <button
                 type="button"
                 onClick={addChannel}
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-1"
+                className="text-xs text-amber-700 hover:text-amber-800 font-semibold flex items-center gap-1"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
@@ -253,7 +253,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
               {channels.map((channel) => (
                 <div key={channel.id} className="flex items-center gap-2">
                   <select
-                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                    className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-sm"
                     value={channel.type}
                     onChange={(e) => updateChannel(channel.id, { type: e.target.value as ChannelType })}
                   >
@@ -264,7 +264,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
                     ))}
                   </select>
                   <input
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-sm"
                     value={channel.handle}
                     onChange={(e) => updateChannel(channel.id, { handle: e.target.value })}
                     placeholder={channel.type === 'Email' ? 'email@example.com' : 'Handle/Number'}
@@ -274,7 +274,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
                     onClick={() => updateChannel(channel.id, { isPrimary: true })}
                     className={`p-2 rounded-lg transition-colors ${
                       channel.isPrimary
-                        ? 'bg-indigo-100 text-indigo-600'
+                        ? 'bg-amber-100 text-amber-700'
                         : 'bg-slate-100 text-slate-400 hover:text-slate-600'
                     }`}
                     title={channel.isPrimary ? 'Primary' : 'Set as Primary'}
@@ -311,14 +311,14 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
                     setPreferredHours({ start: 9, end: 11 });
                   }
                 }}
-                className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                className="w-4 h-4 text-amber-600 border-slate-300 rounded focus:ring-amber-500"
               />
               <span className="text-xs font-bold text-slate-500 uppercase">Preferred Contact Hours</span>
             </label>
             {showPreferredHours && preferredHours && (
               <div className="mt-2 flex items-center gap-2">
                 <select
-                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-sm"
                   value={preferredHours.start}
                   onChange={(e) => setPreferredHours({ ...preferredHours, start: parseInt(e.target.value) })}
                 >
@@ -330,7 +330,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
                 </select>
                 <span className="text-slate-400">to</span>
                 <select
-                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                  className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-sm"
                   value={preferredHours.end}
                   onChange={(e) => setPreferredHours({ ...preferredHours, end: parseInt(e.target.value) })}
                 >
@@ -352,10 +352,10 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
               {formData.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-1 bg-indigo-50 text-indigo-600 text-xs font-medium rounded-full flex items-center gap-1"
+                  className="px-2 py-1 bg-amber-50 text-amber-700 text-xs font-medium rounded-full flex items-center gap-1"
                 >
                   {tag}
-                  <button type="button" onClick={() => removeTag(tag)} className="hover:text-indigo-800">
+                  <button type="button" onClick={() => removeTag(tag)} className="hover:text-amber-900">
                     <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
                     </svg>
@@ -365,7 +365,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
             </div>
             <div className="flex gap-2">
               <input
-                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm"
+                className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none text-sm"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
@@ -385,7 +385,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
           <div>
             <label className="block text-xs font-bold text-slate-500 uppercase mb-1">CRM Notes (Private)</label>
             <textarea
-              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:outline-none h-24"
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none h-24"
               value={formData.crmNotes}
               onChange={(e) => setFormData({ ...formData, crmNotes: e.target.value })}
               placeholder="e.g. Prefers morning calls, logistics delays last month, interested in Product X..."
@@ -398,7 +398,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
           <button
             type="submit"
             onClick={handleSubmit}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl shadow-lg shadow-indigo-100 transition-all active:scale-[0.98]"
+            className="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-lg shadow-amber-100 transition-all active:scale-[0.98]"
           >
             {isEditing ? 'Save Changes' : 'Save Contact Locally'}
           </button>

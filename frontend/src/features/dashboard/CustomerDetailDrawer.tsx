@@ -379,7 +379,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-indigo-600 font-bold text-xl">
+            <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-amber-700 font-bold text-xl">
               {customer.name[0]}
             </div>
             <div>
@@ -430,7 +430,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
             <div className="space-y-2">
               {customer.channels.map((channel) => (
                 <div key={channel.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                  <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${channel.isPrimary ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-200 text-slate-500'}`}>
+                  <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${channel.isPrimary ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'}`}>
                     {channel.type}
                   </span>
                   <span className="text-sm text-slate-700">{channel.handle}</span>
@@ -458,7 +458,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
               ? 'bg-emerald-50 border-emerald-200'
               : scheduleRec.isWeekend && !isCustomTime 
                 ? 'bg-amber-50 border-amber-200' 
-                : 'bg-indigo-50 border-indigo-100'
+                : 'bg-slate-50 border-slate-200'
           }`}>
             {/* Confirmed Time Banner */}
             {isTimeConfirmed && (
@@ -497,7 +497,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                     ? 'text-emerald-600'
                     : scheduleRec.isWeekend && !isCustomTime 
                       ? 'text-amber-600' 
-                      : 'text-indigo-600'
+                      : 'text-slate-600'
                 }`}>
                   {isTimeConfirmed 
                     ? 'Confirmed Send Time'
@@ -517,7 +517,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                       type="datetime-local"
                       value={customDateTime}
                       onChange={(e) => setCustomDateTime(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 font-semibold focus:ring-2 focus:ring-indigo-500 outline-none"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-800 font-semibold focus:ring-2 focus:ring-amber-500 outline-none"
                     />
                     <div className="flex gap-2">
                       <button
@@ -543,7 +543,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                     {!isTimeConfirmed && (
                       <button
                         onClick={handleStartEditTime}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors"
+                        className="p-1.5 text-slate-400 hover:text-amber-700 hover:bg-amber-100 rounded-lg transition-colors"
                         title="Edit send time"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -581,8 +581,8 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                     disabled={hasReminder}
                     className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
                       hasReminder
-                        ? 'bg-indigo-200 text-indigo-700 cursor-not-allowed'
-                        : 'bg-indigo-600 text-white hover:bg-indigo-700'
+                        ? 'bg-amber-200 text-amber-700 cursor-not-allowed'
+                        : 'bg-amber-600 text-white hover:bg-amber-700'
                     }`}
                   >
                     {hasReminder ? '⏰ Set' : 'Set Reminder'}
@@ -624,7 +624,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                     value={intent}
                     onChange={(e) => setIntent(e.target.value)}
                     placeholder="e.g. Follow up on product sample, ask for feedback on logistics..."
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none h-24"
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none h-24"
                   />
                 </div>
 
@@ -635,7 +635,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                   <select
                     value={targetLanguage}
                     onChange={(e) => setTargetLanguage(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none"
                   >
                     <option>Professional English</option>
                     <option>British English</option>
@@ -656,7 +656,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                   <select
                     value={selectedChannelId}
                     onChange={(e) => setSelectedChannelId(e.target.value)}
-                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
+                    className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none"
                   >
                     {customer.channels.map((ch) => (
                       <option key={ch.id} value={ch.id}>
@@ -707,7 +707,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                       type="text"
                       value={draftSubject}
                       onChange={(e) => setDraftSubject(e.target.value)}
-                      className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-semibold"
+                      className="w-full px-4 py-2 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none font-semibold"
                     />
                   ) : (
                     <div className="p-4 bg-slate-50 rounded-xl text-slate-800 font-semibold">
@@ -723,7 +723,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                     <textarea
                       value={draftContent}
                       onChange={(e) => setDraftContent(e.target.value)}
-                      className="w-full p-4 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none h-48"
+                      className="w-full p-4 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none h-48"
                     />
                   ) : (
                     <div className="p-4 bg-slate-50 rounded-xl text-slate-700 whitespace-pre-wrap max-h-64 overflow-y-auto">
@@ -764,7 +764,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                       </button>
                       <button
                         onClick={handleCopy}
-                        className="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                        className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
                       >
                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />

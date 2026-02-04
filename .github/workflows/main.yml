@@ -99,6 +99,6 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
-          tags: globalsync-crm:ci
+          tags: reachtime:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max

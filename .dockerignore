@@ -49,11 +49,6 @@ backend/.env.*
 # *.md
 # !README.md
 
-# Tests (not needed in production image)
-tests/
-pytest.ini
-.pytest_cache/
-
 # GitHub Actions
 .github/
 

@@ -1,14 +1,19 @@
-# GlobalSync CRM - Backend
+# ReachTime - Backend
 
-FastAPI backend for the GlobalSync CRM application. Provides AI-powered draft generation via OpenAI API.
+FastAPI backend for ReachTime. In the **single-container deployment**, the backend also serves the built frontend and exposes all APIs under the `/api/*` prefix.
 
-## API Endpoints
+## API Endpoints (prefixed)
 
-### `POST /generate_draft`
+- `GET /api/health`: health check
+- `POST /api/generate_draft`: generate a draft via OpenAI
+- `POST /api/extract_preferences`: extract structured preferences via OpenAI
+- `POST /api/holiday_status`: single-date holiday/weekend status (Nager.Date, cached per year)
+- `POST /api/holiday_status_batch`: **batch holiday lookup** (returns `date -> holiday_name` mapping for holidays only)
 
-Generate a personalized business communication draft.
+### Example: `POST /api/generate_draft`
 
-**Request Body:**
+**Request Body**
+
 ```json
 {
   "user_intent": "Follow up on product sample",
@@ -20,7 +25,8 @@ Generate a personalized business communication draft.
 }
 ```
 
-**Response:**
+**Response**
+
 ```json
 {
   "subject": "Follow-up on Product Sample",
@@ -28,70 +34,33 @@ Generate a personalized business communication draft.
 }
 ```
 
-### `GET /`
-
-Health check endpoint.
-
-## Setup
+## Local Development (backend only)
 
 ```bash
-# Create virtual environment
+cd backend
+
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Configure environment
-# Edit .env and add your OPENAI_API_KEY
+# No .env files: set secrets via environment variables
+export OPENAI_API_KEY=YOUR_KEY
 
-# Run server
 uvicorn app.main:app --reload --port 8000
 ```
 
+Open:
+- API docs: `http://localhost:8000/api/docs`
+- Health: `http://localhost:8000/api/health`
+
 ## Configuration
 
-### `.env` (Sensitive - Do not commit)
-```
-OPENAI_API_KEY=sk-your-api-key-here
-```
+- **Secrets**: environment variables
+  - `OPENAI_API_KEY` (required)
+  - `CORS_ALLOW_ORIGINS` (optional, comma-separated; usually not needed for same-origin single-container)
+- **Non-sensitive defaults**: `backend/config.yaml`
 
-### `config.yaml` (Non-sensitive)
-```yaml
-openai:
-  model: gpt-4o-mini
+## Deployment (Railway single container)
 
-cors:
-  allow_origins:
-    - "http://localhost:3000"
-    - "https://your-app.netlify.app"
-```
-
-## Deployment
-
-### Render
-1. Create a new Web Service
-2. Connect your repository
-3. Set root directory to `backend`
-4. Set build command: `pip install -r requirements.txt`
-5. Set start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-6. Add environment variable: `OPENAI_API_KEY`
-
-### Fly.io
-```bash
-cd backend
-fly launch
-fly secrets set OPENAI_API_KEY=sk-your-key
-fly deploy
-```
-
-## CORS Configuration
-
-Update `config.yaml` to add your frontend domain:
-
-```yaml
-cors:
-  allow_origins:
-    - "http://localhost:3000"
-    - "https://your-app.netlify.app"
-```
+Deploy from repo root using the root `Dockerfile`. Railway injects `PORT` automatically; set `OPENAI_API_KEY` in Railway Variables. See the root `README.md` for full instructions.

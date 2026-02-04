@@ -24,7 +24,7 @@ const App: React.FC = () => {
   if (isLoading && vaultState === 'locked') {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
+        <div className="w-8 h-8 border-4 border-amber-200 border-t-amber-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -57,7 +57,7 @@ const App: React.FC = () => {
       </AnimatePresence>
 
       <footer className="py-8 px-6 text-center text-slate-400 text-sm">
-        &copy; 2024 GlobalSync CRM • Built for World Traders
+        &copy; 2024 ReachTime • Built for World Traders
       </footer>
     </div>
   );

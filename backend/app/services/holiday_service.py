@@ -7,11 +7,11 @@ Covers developed countries and Southeast Asian countries.
 import logging
 import time
 from datetime import datetime, date
-from typing import Dict, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 import httpx
 
-from app.schemas import HolidayStatusResponse
+from app.schemas import HolidayStatusResponse, HolidayMapResponse
 
 
 # Configure module logger
@@ -239,3 +239,80 @@ async def get_holiday_status(country_code: str, date_str: str) -> HolidayStatusR
         holiday_name=holiday_name,
         is_supported_country=is_supported,
     )
+
+
+async def get_holidays_for_dates(
+    country_code: str, 
+    dates: List[str]
+) -> Tuple[Dict[str, str], bool]:
+    """
+    Get holidays for a list of dates (batch query).
+    Uses per-year caching to minimize Nager.Date API calls.
+    
+    Args:
+        country_code: ISO 2-letter country code
+        dates: List of date strings in YYYY-MM-DD format
+    
+    Returns:
+        Tuple of (holidays_dict, is_supported_country)
+        - holidays_dict: Dict mapping date (YYYY-MM-DD) to holiday name, only for holidays
+        - is_supported_country: Whether the country is in the supported list
+    
+    Raises:
+        ValueError: If any date format is invalid
+        httpx.HTTPError: If Nager.Date API call fails
+    """
+    # Normalize country code
+    country = country_code.upper().strip()
+    is_supported = country in SUPPORTED_COUNTRIES
+    
+    if not is_supported:
+        logger.debug(
+            "Batch holiday query: unsupported country",
+            extra={"country": country_code, "dates_count": len(dates)}
+        )
+        return {}, False
+    
+    # Parse dates and group by year
+    years_needed: Set[int] = set()
+    parsed_dates: List[str] = []
+    
+    for date_str in dates:
+        try:
+            d = datetime.strptime(date_str, "%Y-%m-%d").date()
+            years_needed.add(d.year)
+            parsed_dates.append(date_str)
+        except ValueError:
+            raise ValueError(f"Invalid date format: {date_str}. Expected YYYY-MM-DD.")
+    
+    logger.info(
+        "Batch holiday query started",
+        extra={
+            "country": country,
+            "dates_count": len(parsed_dates),
+            "years_needed": sorted(years_needed),
+        }
+    )
+    
+    # Fetch all needed years (will use cache when available)
+    all_holidays: Dict[str, str] = {}
+    for year in years_needed:
+        year_holidays = await _get_holidays_for_year(country, year)
+        all_holidays.update(year_holidays)
+    
+    # Filter to only requested dates that are holidays
+    result: Dict[str, str] = {}
+    for date_str in parsed_dates:
+        if date_str in all_holidays:
+            result[date_str] = all_holidays[date_str]
+    
+    logger.info(
+        "Batch holiday query completed",
+        extra={
+            "country": country,
+            "dates_requested": len(parsed_dates),
+            "holidays_found": len(result),
+        }
+    )
+    
+    return result, True

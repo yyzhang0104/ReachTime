@@ -1,5 +1,5 @@
 /**
- * Core type definitions for GlobalSync CRM
+ * Core type definitions for ReachTime
  */
 
 // Communication channel types
@@ -67,6 +67,18 @@ export interface HolidayStatusResponse {
   is_holiday: boolean;
   is_weekend: boolean;
   holiday_name?: string;
+  is_supported_country: boolean;
+}
+
+// Batch holiday status request
+export interface HolidayStatusBatchRequest {
+  country_code: string;
+  dates: string[]; // Array of YYYY-MM-DD
+}
+
+// Batch holiday response - only holidays are returned
+export interface HolidayMapResponse {
+  holidays: Record<string, string>; // date -> holiday_name, only for holidays
   is_supported_country: boolean;
 }
 

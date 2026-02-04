@@ -1,4 +1,4 @@
-# GlobalSync CRM - Timezone-Aware AI Assistant
+# ReachTime - Timezone-Aware AI Assistant
 A professional web application to help cross-timezone sales teams contact customers at the right time with smart scheduling and AI-generated drafts.
 
 ## Project Structure
@@ -58,6 +58,7 @@ A professional web application to help cross-timezone sales teams contact custom
 
 ### 4. Smart Scheduling
 - Optimal send time recommendations
+- Batch holiday lookup to reduce latency (`POST /api/holiday_status_batch`)
 - Browser notifications for reminders
 - ⏰ Visual indicators for scheduled follow-ups
 
@@ -72,8 +73,8 @@ A professional web application to help cross-timezone sales teams contact custom
 
 ```bash
 # From repo root
-docker build -t globalsync .
-docker run -p 8000:8000 -e PORT=8000 -e OPENAI_API_KEY=YOUR_KEY globalsync
+docker build -t reachtime .
+docker run -p 8000:8000 -e PORT=8000 -e OPENAI_API_KEY=YOUR_KEY reachtime
 ```
 
 Then open:

@@ -2,7 +2,7 @@
 Pydantic schemas for request and response validation.
 """
 
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict
 from pydantic import BaseModel, Field
 
 
@@ -126,6 +126,36 @@ class HolidayStatusResponse(BaseModel):
     holiday_name: Optional[str] = Field(
         default=None,
         description="Name of the holiday if applicable",
+    )
+    is_supported_country: bool = Field(
+        default=True,
+        description="Whether the country is in the supported list",
+    )
+
+
+class HolidayStatusBatchRequest(BaseModel):
+    """Request schema for batch checking holiday status of multiple dates."""
+    
+    country_code: str = Field(
+        ...,
+        min_length=2,
+        max_length=2,
+        description="ISO 2-letter country code (e.g., 'US', 'CN', 'JP')",
+    )
+    dates: List[str] = Field(
+        ...,
+        min_length=1,
+        max_length=60,
+        description="List of dates to check in YYYY-MM-DD format (max 60)",
+    )
+
+
+class HolidayMapResponse(BaseModel):
+    """Response schema for batch holiday status - only returns holidays (date->name mapping)."""
+    
+    holidays: Dict[str, str] = Field(
+        default_factory=dict,
+        description="Map of date (YYYY-MM-DD) to holiday name; only holidays are included",
     )
     is_supported_country: bool = Field(
         default=True,

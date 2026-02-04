@@ -1,6 +1,6 @@
-# GlobalSync CRM - Frontend
+# ReachTime - Frontend
 
-React + Vite + TypeScript frontend for the GlobalSync CRM application.
+React + Vite + TypeScript frontend for the ReachTime application.
 
 ## Features
 
@@ -14,11 +14,11 @@ React + Vite + TypeScript frontend for the GlobalSync CRM application.
 
 ```bash
 # Install dependencies
-npm install
+npm ci
 
 # Configure environment
 cp .env.example .env.local
-# Edit .env.local to set your backend URL
+# Edit .env.local only if you run backend on a different origin
 
 # Start dev server
 npm run dev
@@ -28,7 +28,11 @@ npm run dev
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_API_BASE_URL` | Backend API URL | `http://localhost:8000` |
+| `VITE_API_BASE_URL` | Backend API base URL | `/api` |
+
+Notes:
+- In **single-container deployment**, frontend and backend share the same origin, so the default `/api` works.
+- For local dev with a separate backend, set `VITE_API_BASE_URL=http://localhost:8000/api`.
 
 ## Project Structure
 
@@ -59,12 +63,6 @@ npm run build
 
 Output will be in the `dist/` directory.
 
-## Deployment to Netlify
+## Deployment
 
-1. Connect your repository to Netlify
-2. Configure build settings:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
-3. Add environment variable `VITE_API_BASE_URL` pointing to your backend
-
-The `netlify.toml` file is already configured for SPA routing.
+This project is deployed as a **single container** (frontend built by Vite and served by the FastAPI backend). See the root `README.md` for Railway deployment.
