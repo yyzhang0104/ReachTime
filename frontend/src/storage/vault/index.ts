@@ -257,7 +257,19 @@ async function loadData<T>(key: string, defaultValue: T): Promise<T> {
 // ============ Customer Operations ============
 
 export async function loadCustomers(): Promise<Customer[]> {
-  return loadData<Customer[]>(STORE_KEYS.CUSTOMERS, []);
+  const customers = await loadData<Customer[]>(STORE_KEYS.CUSTOMERS, []);
+  
+  // Migrate older customers missing firstName/lastName fields
+  return customers.map((c) => {
+    if (!c.firstName) {
+      return {
+        ...c,
+        firstName: c.name || '',
+        lastName: c.lastName ?? '',
+      };
+    }
+    return c;
+  });
 }
 
 export async function saveCustomers(customers: Customer[]): Promise<void> {
@@ -266,8 +278,45 @@ export async function saveCustomers(customers: Customer[]): Promise<void> {
 
 // ============ Focus Items Operations ============
 
+const generateDraftId = () => Math.random().toString(36).substr(2, 9);
+
 export async function loadFocusItems(): Promise<FocusItem[]> {
-  return loadData<FocusItem[]>(STORE_KEYS.FOCUS_ITEMS, []);
+  const items = await loadData<FocusItem[]>(STORE_KEYS.FOCUS_ITEMS, []);
+  
+  // Migrate legacy single-draft fields to multi-draft format
+  return items.map((item) => {
+    // If already has drafts array, no migration needed
+    if (item.drafts && item.drafts.length > 0) {
+      return item;
+    }
+    
+    // Check if there's a legacy draft to migrate
+    if (item.draftSubject || item.draftContent) {
+      const now = Date.now();
+      const draftId = generateDraftId();
+      const legacyDraft = {
+        id: draftId,
+        intent: item.intent || '',
+        targetLanguage: 'Professional English', // Default, not stored in legacy
+        channelType: 'Email', // Default, not stored in legacy
+        subject: item.draftSubject || '',
+        content: item.draftContent || '',
+        isConfirmed: item.isDraftConfirmed || false,
+        confirmedAt: item.draftConfirmedAt,
+        createdAt: item.addedAt || now,
+        updatedAt: item.draftConfirmedAt || item.addedAt || now,
+      };
+      
+      return {
+        ...item,
+        drafts: [legacyDraft],
+        activeDraftId: draftId,
+      };
+    }
+    
+    // No legacy draft, return as-is (drafts will be undefined or empty)
+    return item;
+  });
 }
 
 export async function saveFocusItems(items: FocusItem[]): Promise<void> {

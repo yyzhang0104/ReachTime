@@ -8,10 +8,10 @@
  * - Avoids duplicate OpenAI calls by persisting draft
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useStore, useFocusItem, useCustomer } from '@/store';
-import type { ExtractedPreferences } from '@/types';
+import type { ExtractedPreferences, FocusDraft } from '@/types';
 import { getCustomerAvailability, getTimezoneOffsetLabel } from '@/services/availability';
 import { pinyin } from 'pinyin-pro';
 import {
@@ -74,6 +74,19 @@ import { generateDraft, extractPreferences, ApiError } from '@/services/apiClien
 import { CustomerForm } from '@/features/customers/CustomerForm';
 import { formatInTimeZone } from 'date-fns-tz';
 
+/** Generate a unique draft ID */
+const generateDraftId = () => Math.random().toString(36).substr(2, 9);
+
+/** Get a display label for a draft (title > intent snippet > "Draft N") */
+function getDraftLabel(draft: FocusDraft, index: number): string {
+  if (draft.title) return draft.title;
+  if (draft.intent) {
+    const snippet = draft.intent.slice(0, 20);
+    return snippet.length < draft.intent.length ? `${snippet}...` : snippet;
+  }
+  return `Draft ${index + 1}`;
+}
+
 interface CustomerDetailDrawerProps {
   customerId: string;
   onClose: () => void;
@@ -91,18 +104,90 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
 
   if (!customer) return null;
   
-  // Intent state
-  const [intent, setIntent] = useState(focusItem?.intent || '');
-  const [targetLanguage, setTargetLanguage] = useState('Professional English');
-  const primaryChannel = customer.channels.find((c) => c.isPrimary) || customer.channels[0];
-  const [selectedChannelId, setSelectedChannelId] = useState<string>(primaryChannel?.id || '');
+  // =========== MULTI-DRAFT STATE ===========
+  // Track which draft is currently active
+  const [activeDraftId, setActiveDraftId] = useState<string | undefined>(
+    focusItem?.activeDraftId
+  );
   
-  // Draft state - support editing
-  const [draftSubject, setDraftSubject] = useState(focusItem?.draftSubject || '');
-  const [draftContent, setDraftContent] = useState(focusItem?.draftContent || '');
-  const [hasDraft, setHasDraft] = useState(!!focusItem?.draftSubject);
-  const [isDraftConfirmed, setIsDraftConfirmed] = useState(focusItem?.isDraftConfirmed || false);
+  // Derive drafts array and active draft from focusItem
+  const drafts = useMemo(() => focusItem?.drafts || [], [focusItem?.drafts]);
+  const activeDraft = useMemo(
+    () => drafts.find((d) => d.id === activeDraftId) || drafts[0] || null,
+    [drafts, activeDraftId]
+  );
+  
+  // Sync activeDraftId when focusItem changes (e.g., on initial load or after adding a draft)
+  useEffect(() => {
+    if (focusItem?.activeDraftId && focusItem.activeDraftId !== activeDraftId) {
+      setActiveDraftId(focusItem.activeDraftId);
+    } else if (!activeDraftId && drafts.length > 0) {
+      setActiveDraftId(drafts[0].id);
+    }
+  }, [focusItem?.activeDraftId, drafts, activeDraftId]);
+  
+  // =========== FORM STATE (derived from active draft or defaults) ===========
+  const primaryChannel = customer.channels.find((c) => c.isPrimary) || customer.channels[0];
+  
+  // Intent, language, channel for the draft form
+  const [intent, setIntent] = useState(activeDraft?.intent || focusItem?.intent || '');
+  const [targetLanguage, setTargetLanguage] = useState(activeDraft?.targetLanguage || 'Professional English');
+  const [selectedChannelId, setSelectedChannelId] = useState<string>(
+    activeDraft?.channelHandle 
+      ? customer.channels.find(c => c.handle === activeDraft.channelHandle)?.id || primaryChannel?.id || ''
+      : primaryChannel?.id || ''
+  );
+  
+  // Draft content state (editable)
+  const [draftSubject, setDraftSubject] = useState(activeDraft?.subject || '');
+  const [draftContent, setDraftContent] = useState(activeDraft?.content || '');
+  const [isDraftConfirmed, setIsDraftConfirmed] = useState(activeDraft?.isConfirmed || false);
   const [isEditingDraft, setIsEditingDraft] = useState(false);
+  
+  // Track if we have a draft (with generated content)
+  const hasDraft = !!(activeDraft?.subject || activeDraft?.content);
+  
+  // Sync local form state when active draft changes
+  useEffect(() => {
+    if (activeDraft) {
+      setIntent(activeDraft.intent);
+      setTargetLanguage(activeDraft.targetLanguage);
+      setDraftSubject(activeDraft.subject);
+      setDraftContent(activeDraft.content);
+      setIsDraftConfirmed(activeDraft.isConfirmed);
+      // Find channel by handle
+      const matchedChannel = customer.channels.find(c => c.handle === activeDraft.channelHandle);
+      if (matchedChannel) {
+        setSelectedChannelId(matchedChannel.id);
+      }
+      
+      // Deterministic edit mode rule:
+      // - Unconfirmed draft with content → edit mode ON (show Confirm Draft)
+      // - Confirmed draft → edit mode OFF (show Edit/Copy)
+      const hasContent = !!(activeDraft.subject || activeDraft.content);
+      if (hasContent && !activeDraft.isConfirmed) {
+        setIsEditingDraft(true);
+      } else {
+        setIsEditingDraft(false);
+      }
+    } else {
+      // No active draft - reset to defaults
+      setIntent(focusItem?.intent || '');
+      setTargetLanguage('Professional English');
+      setDraftSubject('');
+      setDraftContent('');
+      setIsDraftConfirmed(false);
+      setSelectedChannelId(primaryChannel?.id || '');
+      setIsEditingDraft(false);
+    }
+    // Clear transient UI state when switching drafts
+    setCopied(false);
+    setError(null);
+  }, [activeDraft?.id]); // Only run when active draft ID changes
+  
+  // Rename modal state
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -266,6 +351,70 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
     updateFocusItem,
   ]);
 
+  // =========== MULTI-DRAFT HANDLERS ===========
+  
+  /** Add a new empty draft and switch to it */
+  const handleAddDraft = async () => {
+    await ensureFocusItem();
+    const newDraftId = generateDraftId();
+    const now = Date.now();
+    const newDraft: FocusDraft = {
+      id: newDraftId,
+      intent: '',
+      targetLanguage: 'Professional English',
+      channelType: primaryChannel?.type || 'Email',
+      channelHandle: primaryChannel?.handle,
+      subject: '',
+      content: '',
+      isConfirmed: false,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    const updatedDrafts = [...drafts, newDraft];
+    await updateFocusItem(customer.id, {
+      drafts: updatedDrafts,
+      activeDraftId: newDraftId,
+    });
+    setActiveDraftId(newDraftId);
+  };
+  
+  /** Switch to a different draft */
+  const handleSwitchDraft = async (draftId: string) => {
+    if (draftId === activeDraftId) return;
+    await ensureFocusItem();
+    await updateFocusItem(customer.id, { activeDraftId: draftId });
+    setActiveDraftId(draftId);
+  };
+  
+  /** Open rename modal for active draft */
+  const handleOpenRename = () => {
+    setRenameValue(activeDraft?.title || '');
+    setShowRenameModal(true);
+  };
+  
+  /** Save renamed draft */
+  const handleSaveRename = async () => {
+    if (!activeDraft) return;
+    const updatedDrafts = drafts.map((d) =>
+      d.id === activeDraft.id ? { ...d, title: renameValue.trim() || undefined, updatedAt: Date.now() } : d
+    );
+    await updateFocusItem(customer.id, { drafts: updatedDrafts });
+    setShowRenameModal(false);
+  };
+  
+  /** Delete the active draft */
+  const handleDeleteDraft = async () => {
+    if (!activeDraft) return;
+    const remainingDrafts = drafts.filter((d) => d.id !== activeDraft.id);
+    const newActiveId = remainingDrafts.length > 0 ? remainingDrafts[0].id : undefined;
+    await updateFocusItem(customer.id, {
+      drafts: remainingDrafts,
+      activeDraftId: newActiveId,
+    });
+    setActiveDraftId(newActiveId);
+  };
+
   const handleGenerateDraft = async () => {
     if (!intent.trim()) {
       setError('Please enter your communication intent');
@@ -279,35 +428,77 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
       // Convert Chinese first name to pinyin if target language is not Chinese
       const senderName = convertToPinyinIfNeeded(userProfile.firstName, targetLanguage);
       
+      // For draft greeting, use customer first name only
+      const customerFirstName = customer.firstName || customer.name || '';
+      const channelType = selectedChannel?.type || 'Email';
+      
+      // For Email channel: if customer first name is Chinese and target language is non-Chinese, convert to pinyin
+      let customerNameForDraft = customerFirstName;
+      if (channelType === 'Email') {
+        customerNameForDraft = convertToPinyinIfNeeded(customerFirstName, targetLanguage);
+      }
+      
       const result = await generateDraft({
         user_intent: intent,
-        communication_channel: selectedChannel?.type || 'Email',
+        communication_channel: channelType,
         crm_notes: customer.crmNotes,
         target_language: targetLanguage,
-        customer_name: customer.name,
+        customer_name: customerNameForDraft,
         sender_name: senderName,
       });
       
       setDraftSubject(result.subject);
       setDraftContent(result.content);
-      setHasDraft(true);
       setIsEditingDraft(true); // Allow immediate editing
       setIsDraftConfirmed(false);
       
-      // Save intent and draft to focus item
-      const updates = {
-        intent,
-        draftSubject: result.subject,
-        draftContent: result.content,
-        isDraftConfirmed: false,
-      };
+      // Ensure focus item exists
+      await ensureFocusItem();
       
-      if (focusItem) {
-        await updateFocusItem(customer.id, updates);
+      // Create or update draft in drafts array
+      const now = Date.now();
+      const selectedChannelHandle = selectedChannel?.handle;
+      
+      if (activeDraft) {
+        // Update existing draft
+        const updatedDrafts = drafts.map((d) =>
+          d.id === activeDraft.id
+            ? {
+                ...d,
+                intent,
+                targetLanguage,
+                channelType,
+                channelHandle: selectedChannelHandle,
+                subject: result.subject,
+                content: result.content,
+                isConfirmed: false,
+                confirmedAt: undefined,
+                updatedAt: now,
+              }
+            : d
+        );
+        await updateFocusItem(customer.id, { drafts: updatedDrafts, intent });
       } else {
-        await addToFocus(customer.id, intent);
-        // Update with draft after adding
-        await updateFocusItem(customer.id, updates);
+        // Create new draft
+        const newDraftId = generateDraftId();
+        const newDraft: FocusDraft = {
+          id: newDraftId,
+          intent,
+          targetLanguage,
+          channelType,
+          channelHandle: selectedChannelHandle,
+          subject: result.subject,
+          content: result.content,
+          isConfirmed: false,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await updateFocusItem(customer.id, {
+          drafts: [...drafts, newDraft],
+          activeDraftId: newDraftId,
+          intent,
+        });
+        setActiveDraftId(newDraftId);
       }
     } catch (err) {
       if (err instanceof ApiError) {
@@ -321,14 +512,24 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
   };
 
   const handleConfirmDraft = async () => {
+    if (!activeDraft) return;
     await ensureFocusItem();
-    // Save the edited draft as finalized
-    await updateFocusItem(customer.id, {
-      draftSubject,
-      draftContent,
-      isDraftConfirmed: true,
-      draftConfirmedAt: Date.now(),
-    });
+    
+    // Update the active draft as confirmed
+    const now = Date.now();
+    const updatedDrafts = drafts.map((d) =>
+      d.id === activeDraft.id
+        ? {
+            ...d,
+            subject: draftSubject,
+            content: draftContent,
+            isConfirmed: true,
+            confirmedAt: now,
+            updatedAt: now,
+          }
+        : d
+    );
+    await updateFocusItem(customer.id, { drafts: updatedDrafts });
     setIsDraftConfirmed(true);
     setIsEditingDraft(false);
   };
@@ -659,9 +860,124 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
 
           {/* AI Draft Section */}
           <div className="border-t border-slate-100 pt-6">
-            <h3 className="text-lg font-bold text-slate-800 mb-4">
-              {hasDraft ? (isDraftConfirmed ? 'Confirmed Draft' : 'Draft Preview') : 'Generate AI Draft'}
-            </h3>
+            {/* Header with Add Draft button */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-slate-800">
+                {hasDraft ? (isDraftConfirmed ? 'Confirmed Draft' : 'Draft Preview') : 'Generate AI Draft'}
+              </h3>
+              {drafts.length > 0 && (
+                <button
+                  onClick={handleAddDraft}
+                  className="flex items-center gap-1 px-3 py-1.5 text-sm text-amber-700 hover:text-amber-800 hover:bg-amber-50 rounded-lg transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Add another draft
+                </button>
+              )}
+            </div>
+            
+            {/* Draft Tabs/List - only show if multiple drafts or one draft with content */}
+            {drafts.length > 0 && (
+              <div className="mb-4">
+                <div className="flex flex-wrap gap-2 pb-3 border-b border-slate-100">
+                  {drafts.map((draft, index) => (
+                    <div
+                      key={draft.id}
+                      className={`group flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm cursor-pointer transition-colors ${
+                        draft.id === activeDraftId
+                          ? 'bg-amber-100 text-amber-800 font-semibold'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      <button
+                        onClick={() => handleSwitchDraft(draft.id)}
+                        className="flex items-center gap-1"
+                      >
+                        {draft.isConfirmed && (
+                          <svg className="w-3.5 h-3.5 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                        <span className="max-w-[120px] truncate">{getDraftLabel(draft, index)}</span>
+                      </button>
+                      
+                      {/* Rename/Delete actions - show on hover or when active */}
+                      {draft.id === activeDraftId && (
+                        <div className="flex items-center gap-0.5 ml-1">
+                          <button
+                            onClick={handleOpenRename}
+                            className="p-1 text-slate-400 hover:text-amber-700 rounded transition-colors"
+                            title="Rename draft"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            </svg>
+                          </button>
+                          {drafts.length > 1 && (
+                            <button
+                              onClick={handleDeleteDraft}
+                              className="p-1 text-slate-400 hover:text-red-600 rounded transition-colors"
+                              title="Delete draft"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Rename Modal */}
+            <AnimatePresence>
+              {showRenameModal && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+                  onClick={() => setShowRenameModal(false)}
+                >
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.95, opacity: 0 }}
+                    onClick={(e) => e.stopPropagation()}
+                    className="bg-white rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl"
+                  >
+                    <h4 className="text-lg font-bold text-slate-800 mb-4">Rename Draft</h4>
+                    <input
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      placeholder="Enter draft name..."
+                      className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-amber-500 outline-none mb-4"
+                      autoFocus
+                    />
+                    <div className="flex gap-3">
+                      <button
+                        onClick={handleSaveRename}
+                        className="flex-1 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl transition-colors"
+                      >
+                        Save
+                      </button>
+                      <button
+                        onClick={() => setShowRenameModal(false)}
+                        className="flex-1 py-2 border-2 border-slate-200 hover:bg-slate-50 text-slate-600 font-semibold rounded-xl transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
             
             {!hasDraft ? (
               // No draft yet - show generation form
@@ -783,9 +1099,10 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                 </div>
                 
                 {/* Actions */}
-                <div className="flex gap-3">
+                <div className="flex flex-col gap-3">
                   {isEditingDraft ? (
-                    <>
+                    // Editing mode: Confirm + Cancel
+                    <div className="flex gap-3">
                       <button
                         onClick={handleConfirmDraft}
                         className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors"
@@ -794,51 +1111,48 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                       </button>
                       <button
                         onClick={() => {
-                          // Reset to saved version
-                          setDraftSubject(focusItem?.draftSubject || '');
-                          setDraftContent(focusItem?.draftContent || '');
+                          // Reset to saved version from active draft
+                          setDraftSubject(activeDraft?.subject || '');
+                          setDraftContent(activeDraft?.content || '');
                           setIsEditingDraft(false);
                         }}
                         className="py-3 px-4 border-2 border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-xl transition-colors"
                       >
                         Cancel
                       </button>
-                    </>
+                    </div>
                   ) : (
+                    // Preview mode: Edit + Copy (+ Confirm if unconfirmed)
                     <>
-                      <button
-                        onClick={() => setIsEditingDraft(true)}
-                        className="flex-1 py-3 border-2 border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-xl transition-colors"
-                      >
-                        Edit Draft
-                      </button>
-                      <button
-                        onClick={handleCopy}
-                        className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-                        </svg>
-                        {copied ? 'Copied!' : 'Copy'}
-                      </button>
+                      {/* Show Confirm button prominently if draft is not yet confirmed */}
+                      {!isDraftConfirmed && (
+                        <button
+                          onClick={handleConfirmDraft}
+                          className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl transition-colors"
+                        >
+                          Confirm Draft
+                        </button>
+                      )}
+                      <div className="flex gap-3">
+                        <button
+                          onClick={() => setIsEditingDraft(true)}
+                          className="flex-1 py-3 border-2 border-slate-200 hover:bg-slate-50 text-slate-600 font-bold rounded-xl transition-colors"
+                        >
+                          Edit Draft
+                        </button>
+                        <button
+                          onClick={handleCopy}
+                          className="flex-1 py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+                          </svg>
+                          {copied ? 'Copied!' : 'Copy'}
+                        </button>
+                      </div>
                     </>
                   )}
                 </div>
-                
-                {/* Regenerate option */}
-                {!isEditingDraft && (
-                  <button
-                    onClick={() => {
-                      setHasDraft(false);
-                      setDraftSubject('');
-                      setDraftContent('');
-                      setIsDraftConfirmed(false);
-                    }}
-                    className="w-full py-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
-                  >
-                    Generate new draft with different intent
-                  </button>
-                )}
               </motion.div>
             )}
           </div>

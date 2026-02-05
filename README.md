@@ -32,7 +32,6 @@ A professional web application to help cross-timezone sales teams contact custom
 ```
 - **Single-container deployment**: frontend is built with Vite and served by the FastAPI backend.
 - **API prefix**: all backend endpoints are under `/api/*` (health: `/api/health`, docs: `/api/docs`).
-- **No `.env` files**: set secrets via environment variables (e.g., Railway Variables).
 
 
 ## Features
@@ -50,17 +49,18 @@ A professional web application to help cross-timezone sales teams contact custom
 - Today's Focus list for prioritized contacts
 - Smart sorting by availability
 
-### 3. AI-Powered Communication
+### 3. Smart Scheduling
+- Send-time recommendations aligned with customer time zones and preferences, optimized for your workflow
+- Weekends and holiday awareness
+- Browser notifications for reminders
+- ⏰ Visual indicators for scheduled follow-ups
+
+### 4. AI-Powered Communication
 - Generate personalized drafts via OpenAI API
+- Multiple drafts per customer (add/switch/rename/delete)
 - Channel-aware formatting (Email vs. IM)
 - Multi-language support
 - CRM context integration
-
-### 4. Smart Scheduling
-- Optimal send time recommendations
-- Batch holiday lookup to reduce latency (`POST /api/holiday_status_batch`)
-- Browser notifications for reminders
-- ⏰ Visual indicators for scheduled follow-ups
 
 ## Quick Start
 

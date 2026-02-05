@@ -85,7 +85,9 @@ export interface HolidayMapResponse {
 // Customer data model (upgraded with multi-channel support)
 export interface Customer {
   id: string;
-  name: string;
+  name: string;              // Derived display name (computed from firstName/lastName)
+  firstName: string;         // Required: customer's first name (名)
+  lastName?: string;         // Optional: customer's last name (姓)
   company: string;
   country: string;           // ISO country code (e.g., "US", "CN", "GB")
   timezone: string;          // IANA timezone (e.g., "America/New_York")
@@ -97,10 +99,26 @@ export interface Customer {
   updatedAt: number;
 }
 
+// A single draft within a focus item (supports multiple drafts per customer)
+export interface FocusDraft {
+  id: string;                        // Unique draft ID
+  title?: string;                    // User-defined title (rename)
+  intent: string;                    // Communication intent for this draft
+  targetLanguage: string;            // e.g., "Professional English"
+  channelType: string;               // e.g., "Email", "WhatsApp"
+  channelHandle?: string;            // Optional: the specific handle/address used
+  subject: string;                   // Generated/edited subject line
+  content: string;                   // Generated/edited content body
+  isConfirmed: boolean;              // Whether this draft is finalized
+  confirmedAt?: number;              // When draft was confirmed
+  createdAt: number;                 // When draft was created
+  updatedAt: number;                 // Last update timestamp
+}
+
 // Today's focus item with intent and scheduled time
 export interface FocusItem {
   customerId: string;
-  intent: string;            // What you want to communicate
+  intent: string;            // What you want to communicate (legacy, kept for migration)
   scheduledTime?: number;    // Unix timestamp for scheduled send
   reminderSet: boolean;      // Whether reminder is active
   addedAt: number;
@@ -110,11 +128,15 @@ export interface FocusItem {
   confirmedScheduledTime?: number;   // The confirmed time (locked, won't be recalculated)
   confirmedAt?: number;              // When the time was confirmed
   
-  // Draft persistence fields (P1.1)
+  // Draft persistence fields (P1.1) - LEGACY, kept for migration
   draftSubject?: string;             // Saved draft subject
   draftContent?: string;             // Saved draft content
   isDraftConfirmed?: boolean;        // Whether draft is finalized
   draftConfirmedAt?: number;         // When draft was confirmed
+  
+  // Multi-draft support (new)
+  drafts?: FocusDraft[];             // Array of drafts for this customer
+  activeDraftId?: string;            // Currently active/selected draft ID
   
   // LLM preferences cache
   extractedPreferences?: ExtractedPreferences;

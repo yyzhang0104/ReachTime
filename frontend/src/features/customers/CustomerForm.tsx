@@ -18,6 +18,35 @@ const CHANNEL_TYPES: ChannelType[] = ['Email', 'WhatsApp', 'WeChat', 'SMS', 'Pho
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
+/**
+ * Check if a string contains Chinese characters
+ */
+function containsChinese(str: string): boolean {
+  return /[\u4e00-\u9fa5]/.test(str);
+}
+
+/**
+ * Compute display name based on Chinese/English rules
+ * - Chinese: lastName + firstName (no space)
+ * - English: firstName + ' ' + lastName (with space), or just firstName if no lastName
+ */
+function computeDisplayName(firstName: string, lastName: string): string {
+  const first = firstName.trim();
+  const last = lastName.trim();
+  
+  if (!first && !last) return '';
+  if (!first) return last;
+  if (!last) return first;
+  
+  // If either contains Chinese, use Chinese format: lastName + firstName
+  if (containsChinese(first) || containsChinese(last)) {
+    return `${last}${first}`;
+  }
+  
+  // English format: firstName + space + lastName
+  return `${first} ${last}`;
+}
+
 function normalizeCountryForSelector(countryCode: string): string {
   // Requirement: do not show HK/TW in country dropdown.
   // If existing data contains HK/TW, map to China for selection purposes.
@@ -30,7 +59,8 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
   const isEditing = !!customer;
 
   const [formData, setFormData] = useState({
-    name: customer?.name || '',
+    firstName: customer?.firstName || customer?.name || '',
+    lastName: customer?.lastName || '',
     company: customer?.company || '',
     country: normalizeCountryForSelector(customer?.country || 'US'),
     timezone: customer?.timezone || 'America/New_York',
@@ -71,9 +101,16 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
       validChannels[0].isPrimary = true;
     }
 
+    // Compute display name based on Chinese/English rules
+    const firstName = formData.firstName.trim();
+    const lastName = formData.lastName.trim();
+    const displayName = computeDisplayName(firstName, lastName);
+
     const customerData: Customer = {
       id: customer?.id || generateId(),
-      name: formData.name.trim(),
+      name: displayName,
+      firstName,
+      lastName: lastName || undefined,
       company: formData.company.trim(),
       country: formData.country,
       timezone: formData.timezone,
@@ -166,27 +203,42 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Basic Info */}
+          {/* Name Fields */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Full Name *</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                First Name (名) <span className="text-red-500">*</span>
+              </label>
               <input
                 required
                 className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g. John Smith"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                placeholder="e.g. John / 明"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Company</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                Last Name (姓) <span className="text-slate-400 font-normal normal-case">optional</span>
+              </label>
               <input
                 className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                value={formData.company}
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                placeholder="e.g. Acme Corp"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                placeholder="e.g. Smith / 张"
               />
             </div>
+          </div>
+
+          {/* Company */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Company</label>
+            <input
+              className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none"
+              value={formData.company}
+              onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+              placeholder="e.g. Acme Corp"
+            />
           </div>
 
           {/* Country & Timezone */}
