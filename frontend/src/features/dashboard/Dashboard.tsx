@@ -7,7 +7,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '@/store';
 import type { Customer } from '@/types';
-import { getCustomerAvailability, getTimezoneOffsetLabel, sortByAvailability } from '@/services/availability';
+import { getCustomerAvailability, getTimezoneOffsetLabel, sortByAvailability, getCountryName, timezoneCityLabel } from '@/services/availability';
 import { CustomerDetailDrawer } from './CustomerDetailDrawer';
 
 interface CustomerCardProps {
@@ -74,11 +74,14 @@ const CustomerCard: React.FC<CustomerCardProps> = ({ customer, onSelect, onToggl
           </span>
           <span className="text-xs text-slate-500 truncate">{primaryChannel?.handle}</span>
         </div>
-        {customer.crmNotes && (
-          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100/50">
-            <p className="text-xs text-slate-600 line-clamp-2 italic">"{customer.crmNotes}"</p>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 text-[10px] font-black uppercase rounded-full">
+            TIMEZONE
+          </span>
+          <span className="text-xs text-slate-500 truncate">
+            {getCountryName(customer.country)} • {timezoneCityLabel(customer.timezone)}
+          </span>
+        </div>
         {customer.tags.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {customer.tags.slice(0, 3).map((tag) => (

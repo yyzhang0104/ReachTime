@@ -430,7 +430,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
             <div className="space-y-2">
               {customer.channels.map((channel) => (
                 <div key={channel.id} className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-                  <span className={`px-2 py-0.5 text-[10px] font-bold uppercase rounded ${channel.isPrimary ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'}`}>
+                  <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-amber-100 text-amber-700">
                     {channel.type}
                   </span>
                   <span className="text-sm text-slate-700">{channel.handle}</span>
@@ -538,7 +538,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                   // Display mode: show time with edit button
                   <div className="flex items-center gap-2">
                     <div className="text-lg font-bold text-slate-800">
-                      {showScheduleLoading ? 'Analyzing…' : `${formattedTime.userTime} your time`}
+                      {showScheduleLoading ? 'Analyzing…' : `${formattedTime.userDateTime} your time`}
                     </div>
                     {!isTimeConfirmed && (
                       <button
@@ -558,7 +558,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
                   <div className="text-xs text-slate-500 mt-1">
                     {showScheduleLoading
                       ? 'Analyzing CRM notes and constraints…'
-                      : `${formattedTime.customerTime} customer time (${formattedTime.customerDate})`}
+                      : `${formattedTime.customerDateTime} customer time`}
                   </div>
                 )}
               </div>

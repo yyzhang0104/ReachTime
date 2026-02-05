@@ -546,17 +546,16 @@ export function getNextAvailableWindowSync(
 
 /**
  * Format a scheduled time for display
+ * Returns date+time strings in each timezone's local representation
  */
 export function formatScheduledTime(
   time: Date,
   userTimezone: string,
   customerTimezone: string
-): { userTime: string; customerTime: string; userDate: string; customerDate: string } {
+): { userDateTime: string; customerDateTime: string } {
   return {
-    userTime: formatInTimeZone(time, userTimezone, 'HH:mm'),
-    customerTime: formatInTimeZone(time, customerTimezone, 'HH:mm'),
-    userDate: formatInTimeZone(time, userTimezone, 'EEE, MMM d'),
-    customerDate: formatInTimeZone(time, customerTimezone, 'EEE, MMM d'),
+    userDateTime: formatInTimeZone(time, userTimezone, 'yyyy-MM-dd HH:mm'),
+    customerDateTime: formatInTimeZone(time, customerTimezone, 'yyyy-MM-dd HH:mm'),
   };
 }
 

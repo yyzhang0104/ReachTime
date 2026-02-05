@@ -8,7 +8,7 @@ import type { Customer, AvailabilityStatus } from '@/types';
 
 // Default working hours (in customer's local time)
 const DEFAULT_WORK_START = 9;
-const DEFAULT_WORK_END = 18;
+const DEFAULT_WORK_END = 17;
 
 // Weekend days (0 = Sunday, 6 = Saturday)
 const WEEKEND_DAYS = [0, 6];
@@ -274,3 +274,26 @@ export const COUNTRIES = [
   { code: 'AU', name: 'Australia' },
   { code: 'NZ', name: 'New Zealand' },
 ];
+
+/**
+ * Get country name from ISO code
+ * Falls back to the code itself if not found
+ */
+export function getCountryName(code: string): string {
+  const country = COUNTRIES.find((c) => c.code === code);
+  return country?.name ?? code;
+}
+
+/**
+ * Get a human-readable city label from an IANA timezone string.
+ * Handles special cases:
+ * - Asia/Hong_Kong -> "Hong Kong"
+ * - Asia/Taipei -> "Taipei"
+ * - Underscores are replaced with spaces (e.g., Ho_Chi_Minh -> "Ho Chi Minh")
+ */
+export function timezoneCityLabel(tz: string): string {
+  if (tz === 'Asia/Hong_Kong') return 'Hong Kong';
+  if (tz === 'Asia/Taipei') return 'Taipei';
+  // Extract city part after the last '/' and replace underscores
+  return tz.split('/').pop()?.replaceAll('_', ' ') || tz;
+}

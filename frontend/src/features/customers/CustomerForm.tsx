@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useStore } from '@/store';
 import type { Customer, ContactChannel, ChannelType, PreferredHours } from '@/types';
-import { COUNTRIES, COUNTRY_TIMEZONES, TIMEZONE_REGIONS } from '@/services/availability';
+import { COUNTRIES, COUNTRY_TIMEZONES, TIMEZONE_REGIONS, timezoneCityLabel } from '@/services/availability';
 
 interface CustomerFormProps {
   customer?: Customer; // If provided, we're editing
@@ -23,15 +23,6 @@ function normalizeCountryForSelector(countryCode: string): string {
   // If existing data contains HK/TW, map to China for selection purposes.
   if (countryCode === 'HK' || countryCode === 'TW') return 'CN';
   return countryCode;
-}
-
-function timezoneLabel(tz: string): string {
-  // Requirement: China timezone should show as Beijing (not Shanghai).
-  // Note: IANA does not use Asia/Beijing; Beijing shares Asia/Shanghai.
-  if (tz === 'Asia/Shanghai') return 'Beijing';
-  if (tz === 'Asia/Hong_Kong') return 'Hong Kong';
-  if (tz === 'Asia/Taipei') return 'Taipei';
-  return tz.split('/').pop()?.replaceAll('_', ' ') || tz;
 }
 
 export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose }) => {
@@ -225,7 +216,7 @@ export const CustomerForm: React.FC<CustomerFormProps> = ({ customer, onClose })
                   <optgroup key={region} label={region}>
                     {tzs.map((tz) => (
                       <option key={tz} value={tz}>
-                        {timezoneLabel(tz)}
+                        {timezoneCityLabel(tz)}
                       </option>
                     ))}
                   </optgroup>
