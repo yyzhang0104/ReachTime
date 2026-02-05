@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { useStore, useFocusItem, useCustomer } from '@/store';
 import type { ExtractedPreferences } from '@/types';
 import { getCustomerAvailability, getTimezoneOffsetLabel } from '@/services/availability';
+import { pinyin } from 'pinyin-pro';
 import {
   getNextAvailableWindowSync,
   getNextAvailableWindow,
@@ -20,7 +21,55 @@ import {
   setReminder,
   hashString,
   type ExtendedScheduleRecommendation,
+  type UserWorkHoursConfig,
 } from '@/services/scheduling';
+
+/**
+ * Parse "HH:mm" string to hour number
+ */
+function parseHourFromTimeString(timeStr: string): number {
+  const [hourStr] = timeStr.split(':');
+  return parseInt(hourStr, 10);
+}
+
+/**
+ * Check if a string contains Chinese characters
+ */
+function containsChinese(str: string): boolean {
+  return /[\u4e00-\u9fa5]/.test(str);
+}
+
+/**
+ * Check if target language is Chinese
+ */
+function isChineseLanguage(lang: string): boolean {
+  const lowerLang = lang.toLowerCase();
+  return lowerLang.includes('chinese') || 
+         lowerLang.includes('中文') || 
+         lowerLang.includes('mandarin') ||
+         lowerLang.includes('简体') ||
+         lowerLang.includes('繁体');
+}
+
+/**
+ * Convert Chinese name to pinyin with capitalization (for non-Chinese target languages)
+ * Example: "明" -> "Ming"
+ */
+function convertToPinyinIfNeeded(name: string, targetLanguage: string): string {
+  if (!containsChinese(name)) {
+    return name; // Not Chinese, return as-is
+  }
+  
+  if (isChineseLanguage(targetLanguage)) {
+    return name; // Target is Chinese, keep Chinese characters
+  }
+  
+  // Convert to pinyin with proper capitalization
+  // pinyin-pro returns lowercase by default, we capitalize the first letter
+  const pinyinResult = pinyin(name, { toneType: 'none', type: 'array' });
+  // Capitalize first letter of each character's pinyin
+  return pinyinResult.map(p => p.charAt(0).toUpperCase() + p.slice(1)).join('');
+}
 import { generateDraft, extractPreferences, ApiError } from '@/services/apiClient';
 import { CustomerForm } from '@/features/customers/CustomerForm';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -60,9 +109,15 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
   const [copied, setCopied] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
   
+  // Build user work hours config from profile
+  const userWorkHoursConfig: UserWorkHoursConfig = {
+    start: parseHourFromTimeString(userProfile.workHours.start),
+    end: parseHourFromTimeString(userProfile.workHours.end),
+  };
+  
   // Scheduling state
   const [scheduleRec, setScheduleRec] = useState<ExtendedScheduleRecommendation>(
-    () => getNextAvailableWindowSync(customer, userProfile.currentTimezone)
+    () => getNextAvailableWindowSync(customer, userProfile.currentTimezone, userWorkHoursConfig)
   );
   const [isLoadingSchedule, setIsLoadingSchedule] = useState(true);
 
@@ -129,7 +184,12 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
     const loadSchedule = async () => {
       try {
         const prefsToUse = extractedPrefs ?? focusItem?.extractedPreferences ?? undefined;
-        const rec = await getNextAvailableWindow(customer, userProfile.currentTimezone, prefsToUse);
+        const rec = await getNextAvailableWindow(
+          customer,
+          userProfile.currentTimezone,
+          prefsToUse,
+          userWorkHoursConfig
+        );
         if (!cancelled) {
           setScheduleRec(rec);
         }
@@ -145,7 +205,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
     loadSchedule();
     
     return () => { cancelled = true; };
-  }, [customer, userProfile.currentTimezone, focusItem, extractedPrefs, isTimeConfirmed]);
+  }, [customer, userProfile.currentTimezone, userProfile.workHours.start, userProfile.workHours.end, focusItem, extractedPrefs, isTimeConfirmed]);
 
   // Extract preferences from CRM notes if needed
   useEffect(() => {
@@ -216,13 +276,16 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
     setError(null);
 
     try {
+      // Convert Chinese first name to pinyin if target language is not Chinese
+      const senderName = convertToPinyinIfNeeded(userProfile.firstName, targetLanguage);
+      
       const result = await generateDraft({
         user_intent: intent,
         communication_channel: selectedChannel?.type || 'Email',
         crm_notes: customer.crmNotes,
         target_language: targetLanguage,
         customer_name: customer.name,
-        sender_name: userProfile.name,
+        sender_name: senderName,
       });
       
       setDraftSubject(result.subject);
@@ -564,30 +627,17 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({ cust
               </div>
               
               {!isEditingTime && !isTimeConfirmed && (
-                <div className="flex flex-col gap-2">
-                  <button
-                    onClick={handleConfirmSendTime}
-                    disabled={showScheduleLoading}
-                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                      showScheduleLoading
-                        ? 'bg-emerald-200 text-emerald-700 cursor-not-allowed'
-                        : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    }`}
-                  >
-                    Confirm Time
-                  </button>
-                  <button
-                    onClick={handleSetReminder}
-                    disabled={hasReminder}
-                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                      hasReminder
-                        ? 'bg-amber-200 text-amber-700 cursor-not-allowed'
-                        : 'bg-amber-600 text-white hover:bg-amber-700'
-                    }`}
-                  >
-                    {hasReminder ? '⏰ Set' : 'Set Reminder'}
-                  </button>
-                </div>
+                <button
+                  onClick={handleConfirmSendTime}
+                  disabled={showScheduleLoading}
+                  className={`px-3 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    showScheduleLoading
+                      ? 'bg-emerald-200 text-emerald-700 cursor-not-allowed'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  Confirm Time
+                </button>
               )}
               
               {isTimeConfirmed && !hasReminder && (

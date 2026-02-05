@@ -141,11 +141,15 @@ export async function initializeVault(username: string, password: string): Promi
   // Initialize empty data stores
   const emptyCustomers: Customer[] = [];
   const emptyFocusItems: FocusItem[] = [];
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const defaultProfile: UserProfile = {
     username: u,
     name: u,
-    homeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    firstName: u,
+    lastName: '',
+    homeTimezone: browserTz,
+    currentTimezone: browserTz,
+    workHours: { start: '09:00', end: '18:00' },
   };
 
   currentPassword = password;
@@ -273,13 +277,32 @@ export async function saveFocusItems(items: FocusItem[]): Promise<void> {
 // ============ User Profile Operations ============
 
 export async function loadUserProfile(): Promise<UserProfile> {
+  const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const defaultProfile: UserProfile = {
     username: currentUsername || 'User',
     name: currentUsername || 'User',
-    homeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    firstName: currentUsername || 'User',
+    lastName: '',
+    homeTimezone: browserTz,
+    currentTimezone: browserTz,
+    workHours: { start: '09:00', end: '18:00' },
   };
-  return loadData<UserProfile>(STORE_KEYS.USER_PROFILE, defaultProfile);
+  
+  // Load stored profile
+  const stored = await loadData<Partial<UserProfile>>(STORE_KEYS.USER_PROFILE, {});
+  
+  // Merge defaults with stored data (backward compatible for old profiles missing new fields)
+  return {
+    ...defaultProfile,
+    ...stored,
+    // Ensure workHours is properly merged even if stored has partial workHours
+    workHours: {
+      ...defaultProfile.workHours,
+      ...(stored.workHours || {}),
+    },
+    // If stored profile has no firstName, use name or username as fallback
+    firstName: stored.firstName || stored.name || stored.username || defaultProfile.firstName,
+  };
 }
 
 export async function saveUserProfile(profile: UserProfile): Promise<void> {

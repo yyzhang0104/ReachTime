@@ -15,9 +15,17 @@ import { getHolidayMapBatch } from '@/services/apiClient';
 const DEFAULT_WORK_START = 9;
 const DEFAULT_WORK_END = 17;
 
-// User work hours (fixed for MVP)
-const USER_WORK_START = 9;
-const USER_WORK_END = 18;
+// Default user work hours (used if profile doesn't specify)
+const DEFAULT_USER_WORK_START = 9;
+const DEFAULT_USER_WORK_END = 18;
+
+/**
+ * User work hours configuration (passed from user profile)
+ */
+export interface UserWorkHoursConfig {
+  start: number; // Hour (0-23)
+  end: number;   // Hour (0-23)
+}
 
 // Weekend days (0 = Sunday, 6 = Saturday)
 const WEEKEND_DAYS = [0, 6];
@@ -129,14 +137,18 @@ function isInTimeWindow(
 /**
  * Calculate user friendliness score based on user's local hour
  * Higher score = more friendly to user
- * Priority: 09:00-18:00 (4) > 18:00-22:00 (3) > 06:00-09:00 (2) > 22:00-00:00 (1) > 00:00-06:00 (0)
+ * Priority: user work hours (4) > evening before 22:00 (3) > early morning (2) > late night (1) > very late night (0)
  */
-function getUserFriendlinessScore(userHour: number): number {
-  if (userHour >= USER_WORK_START && userHour < USER_WORK_END) {
+function getUserFriendlinessScore(
+  userHour: number,
+  userWorkStart: number = DEFAULT_USER_WORK_START,
+  userWorkEnd: number = DEFAULT_USER_WORK_END
+): number {
+  if (userHour >= userWorkStart && userHour < userWorkEnd) {
     return 4; // User work hours - best
-  } else if (userHour >= USER_WORK_END && userHour < 22) {
+  } else if (userHour >= userWorkEnd && userHour < 22) {
     return 3; // Evening before 22:00
-  } else if (userHour >= 6 && userHour < USER_WORK_START) {
+  } else if (userHour >= 6 && userHour < userWorkStart) {
     return 2; // Early morning after 06:00
   } else if (userHour >= 22 && userHour < 24) {
     return 1; // Late night (前半夜: 22:00 - 00:00)
@@ -314,18 +326,24 @@ function generateCandidates(
  * 
  * @param customer - The customer to schedule for
  * @param userTimezone - The user's current timezone
- * @param focusItem - Optional focus item with cached LLM preferences
+ * @param extractedPreferences - Optional LLM-extracted preferences
+ * @param userWorkHours - Optional user work hours from profile
  */
 export async function getNextAvailableWindow(
   customer: Customer,
   userTimezone: string,
   extractedPreferences?: ExtractedPreferences,
+  userWorkHours?: UserWorkHoursConfig,
 ): Promise<ExtendedScheduleRecommendation> {
   const now = new Date();
   
-  // Determine work hours to use
+  // Determine customer work hours to use
   const workStart = customer.preferredHours?.start ?? DEFAULT_WORK_START;
   const workEnd = customer.preferredHours?.end ?? DEFAULT_WORK_END;
+  
+  // User work hours (from profile or defaults)
+  const userWorkStart = userWorkHours?.start ?? DEFAULT_USER_WORK_START;
+  const userWorkEnd = userWorkHours?.end ?? DEFAULT_USER_WORK_END;
   
   // LLM extracted preferences (optional)
   const extractedPrefs = extractedPreferences ?? null;
@@ -402,8 +420,8 @@ export async function getNextAvailableWindow(
     
     const preferenceScore = getPreferenceScore(candidate, customer, extractedPrefs);
     const userHour = getHourInTimezone(candidate, userTimezone);
-    const userFriendliness = getUserFriendlinessScore(userHour);
-    const isUserWorkTime = userHour >= USER_WORK_START && userHour < USER_WORK_END;
+    const userFriendliness = getUserFriendlinessScore(userHour, userWorkStart, userWorkEnd);
+    const isUserWorkTime = userHour >= userWorkStart && userHour < userWorkEnd;
     
     validCandidates.push({
       time: candidate,
@@ -478,14 +496,23 @@ export async function getNextAvailableWindow(
 /**
  * Synchronous version for initial render (without holiday check)
  * Use this for immediate display, then call async version for accurate result
+ * 
+ * @param customer - The customer to schedule for
+ * @param userTimezone - The user's current timezone
+ * @param userWorkHours - Optional user work hours from profile
  */
 export function getNextAvailableWindowSync(
   customer: Customer,
   userTimezone: string,
+  userWorkHours?: UserWorkHoursConfig,
 ): ExtendedScheduleRecommendation {
   const now = new Date();
   const workStart = customer.preferredHours?.start ?? DEFAULT_WORK_START;
   const workEnd = customer.preferredHours?.end ?? DEFAULT_WORK_END;
+  
+  // User work hours (from profile or defaults)
+  const userWorkStart = userWorkHours?.start ?? DEFAULT_USER_WORK_START;
+  const userWorkEnd = userWorkHours?.end ?? DEFAULT_USER_WORK_END;
   
   // Simple logic: find next work hour (computed in customer local time, then converted to UTC)
   const customerNowLocal = toZonedTime(now, customer.timezone);
@@ -530,7 +557,7 @@ export function getNextAvailableWindowSync(
   
   const suggestedTime = fromZonedTime(suggestedLocal, customer.timezone);
   const userHour = getHourInTimezone(suggestedTime, userTimezone);
-  const isUserWorkTime = userHour >= USER_WORK_START && userHour < USER_WORK_END;
+  const isUserWorkTime = userHour >= userWorkStart && userHour < userWorkEnd;
   
   return {
     suggestedTime,
@@ -539,7 +566,7 @@ export function getNextAvailableWindowSync(
     isWeekend,
     isHoliday: false,
     isUserWorkTime,
-    userFriendlinessScore: getUserFriendlinessScore(userHour),
+    userFriendlinessScore: getUserFriendlinessScore(userHour, userWorkStart, userWorkEnd),
     nextBusinessDay,
   };
 }

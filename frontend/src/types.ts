@@ -122,12 +122,21 @@ export interface FocusItem {
   preferencesExtractedAt?: number;   // When preferences were extracted
 }
 
+// User work hours (in user's local time)
+export interface UserWorkHours {
+  start: string; // "HH:mm" format, e.g. "09:00"
+  end: string;   // "HH:mm" format, e.g. "18:00"
+}
+
 // User profile
 export interface UserProfile {
   username: string;
-  name: string;
+  name: string;              // Deprecated - use firstName/lastName instead
+  firstName: string;         // Required: user's first name (名)
+  lastName?: string;         // Optional: user's last name (姓)
   homeTimezone: string;      // User's home timezone
   currentTimezone: string;   // Current timezone (for travel mode)
+  workHours: UserWorkHours;  // User's work hours for scheduling
 }
 
 // Availability status for customers

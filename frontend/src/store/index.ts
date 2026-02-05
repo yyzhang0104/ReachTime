@@ -58,11 +58,16 @@ interface AppState {
   clearError: () => void;
 }
 
+const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 const defaultUserProfile: UserProfile = {
   username: 'User',
   name: 'User',
-  homeTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-  currentTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  firstName: 'User',
+  lastName: '',
+  homeTimezone: browserTz,
+  currentTimezone: browserTz,
+  workHours: { start: '09:00', end: '18:00' },
 };
 
 export const useStore = create<AppState>((set, get) => ({

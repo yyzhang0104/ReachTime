@@ -1,6 +1,6 @@
 /**
  * Time Header Component
- * Shows current time in user's timezone with travel mode toggle
+ * Shows current time in user's timezone with travel mode toggle and profile editor
  */
 
 import React, { useState, useEffect } from 'react';
@@ -10,9 +10,26 @@ import { useStore } from '@/store';
 import { TIMEZONE_REGIONS } from '@/services/availability';
 
 export const TimeHeader: React.FC = () => {
-  const { userProfile, setCurrentTimezone, lockVault } = useStore();
+  const { userProfile, setCurrentTimezone, updateUserProfile, lockVault } = useStore();
   const [now, setNow] = useState(new Date());
   const [showTimezoneSelector, setShowTimezoneSelector] = useState(false);
+  const [showProfileEditor, setShowProfileEditor] = useState(false);
+  const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
+  
+  // Profile form state
+  const [firstName, setFirstName] = useState(userProfile.firstName);
+  const [lastName, setLastName] = useState(userProfile.lastName || '');
+  const [workStart, setWorkStart] = useState(userProfile.workHours.start);
+  const [workEnd, setWorkEnd] = useState(userProfile.workHours.end);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Sync form state when userProfile changes
+  useEffect(() => {
+    setFirstName(userProfile.firstName);
+    setLastName(userProfile.lastName || '');
+    setWorkStart(userProfile.workHours.start);
+    setWorkEnd(userProfile.workHours.end);
+  }, [userProfile]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 1000);
@@ -31,6 +48,33 @@ export const TimeHeader: React.FC = () => {
   const handleResetToHome = () => {
     setCurrentTimezone(userProfile.homeTimezone);
     setShowTimezoneSelector(false);
+  };
+
+  const handleOpenProfileEditor = () => {
+    // Reset form to current profile values
+    setFirstName(userProfile.firstName);
+    setLastName(userProfile.lastName || '');
+    setWorkStart(userProfile.workHours.start);
+    setWorkEnd(userProfile.workHours.end);
+    setShowProfileEditor(true);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!firstName.trim()) return;
+    
+    setIsSaving(true);
+    try {
+      await updateUserProfile({
+        ...userProfile,
+        firstName: firstName.trim(),
+        lastName: lastName.trim() || undefined,
+        name: firstName.trim(), // Keep name in sync for backward compat
+        workHours: { start: workStart, end: workEnd },
+      });
+      setShowProfileEditor(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -73,14 +117,26 @@ export const TimeHeader: React.FC = () => {
             Travel Mode
           </button>
 
-          {/* Lock Button */}
+          {/* Profile Button */}
           <button
-            onClick={lockVault}
+            onClick={handleOpenProfileEditor}
             className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-            title="Lock Vault"
+            title="Edit Profile"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+          </button>
+
+          {/* Sign Out Button */}
+          <button
+            onClick={() => setShowSignOutConfirm(true)}
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            title="Sign out"
+            aria-label="Sign out"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
           </button>
         </div>
@@ -153,6 +209,175 @@ export const TimeHeader: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Profile Editor Modal */}
+      <AnimatePresence>
+        {showProfileEditor && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowProfileEditor(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800">My Profile</h2>
+                  <p className="text-sm text-slate-500">Edit your name and work hours</p>
+                </div>
+                <button
+                  onClick={() => setShowProfileEditor(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {/* First Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                    First Name (名) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Your first name"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-slate-800"
+                  />
+                </div>
+
+                {/* Last Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                    Last Name (姓) <span className="text-slate-400 font-normal normal-case">optional</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Your last name"
+                    className="w-full px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-slate-800"
+                  />
+                </div>
+
+                {/* Work Hours */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase mb-1.5">
+                    Work Hours
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="time"
+                      value={workStart}
+                      onChange={(e) => setWorkStart(e.target.value)}
+                      className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-slate-800"
+                    />
+                    <span className="text-slate-400 font-medium">to</span>
+                    <input
+                      type="time"
+                      value={workEnd}
+                      onChange={(e) => setWorkEnd(e.target.value)}
+                      className="flex-1 px-4 py-2.5 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 text-slate-800"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1.5">
+                    Used to optimize your scheduling suggestions
+                  </p>
+                </div>
+              </div>
+
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowProfileEditor(false)}
+                  className="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={!firstName.trim() || isSaving}
+                  className="px-5 py-2 bg-amber-600 hover:bg-amber-700 disabled:bg-amber-300 text-white font-semibold rounded-lg transition-colors flex items-center gap-2"
+                >
+                  {isSaving ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Profile'
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sign Out Confirmation Modal */}
+      <AnimatePresence>
+        {showSignOutConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            onClick={() => setShowSignOutConfirm(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-6 py-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                    </svg>
+                  </div>
+                  <h2 className="text-lg font-bold text-slate-800">Sign out?</h2>
+                </div>
+                <p className="text-sm text-slate-600 mb-6">
+                  This locks your local vault. You'll need your password to sign in again.
+                </p>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setShowSignOutConfirm(false)}
+                    className="px-4 py-2 text-slate-600 hover:text-slate-800 font-medium rounded-lg transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      lockVault();
+                      setShowSignOutConfirm(false);
+                    }}
+                    className="px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-lg transition-colors"
+                  >
+                    Sign out
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
