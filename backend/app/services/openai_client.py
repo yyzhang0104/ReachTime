@@ -45,7 +45,8 @@ def _build_system_prompt(
         channel_instructions = f"""
 - Communication Channel: {communication_channel if communication_channel else 'Email'}
 - Generate a standard professional business email format.
-- Include: formal greeting, well-structured body paragraphs, and formal closing/sign-off."""
+- Include: formal greeting, well-structured body paragraphs, and formal closing/sign-off.
+- For the greeting (e.g., "Dear ..."), address the customer by their FIRST NAME only. Do not use full name or last name."""
 
     # Build CRM notes instructions
     if crm_notes.strip():

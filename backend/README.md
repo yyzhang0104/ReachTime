@@ -30,7 +30,7 @@ FastAPI backend for ReachTime. In the **single-container deployment**, the backe
 ```json
 {
   "subject": "Follow-up on Product Sample",
-  "content": "Dear John Smith,\n\n..."
+  "content": "Dear John,\n\n..."
 }
 ```
 
