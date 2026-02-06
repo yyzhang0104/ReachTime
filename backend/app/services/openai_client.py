@@ -66,12 +66,12 @@ def _build_system_prompt(
     # Build name placeholder instructions
     name_instructions = []
     if not customer_name.strip():
-        name_instructions.append("- Customer name is NOT provided. Use the placeholder **[Customer Name]** prominently in the text.")
+        name_instructions.append("- Customer name is NOT provided. Use the placeholder **{{CUSTOMER_NAME}}** prominently in the text.")
     else:
         name_instructions.append(f"- Customer Name: {customer_name}")
 
     if not sender_name.strip():
-        name_instructions.append("- Sender name is NOT provided. Use the placeholder **[Your Name]** prominently in the sign-off.")
+        name_instructions.append("- Sender name is NOT provided. Use the placeholder **{{SENDER_NAME}}** prominently in the sign-off.")
     else:
         name_instructions.append(f"- Sender Name: {sender_name}")
 
@@ -96,7 +96,7 @@ Your task is to generate professional, authentic, and personalized business comm
 1. **User Intent is Central**: The communication MUST directly address and achieve the user's stated intent.
 2. **No Fabrication**: NEVER invent prices, discounts, contract terms, company names, or any specific details not provided by the user.
 3. **Tone**: Professional, respectful, and appropriate. Avoid hollow sales pitches or generic filler content.
-4. **Placeholders**: If customer name or sender name is missing, use **[Customer Name]** or **[Your Name]** as visible placeholders. Make these placeholders STAND OUT so they are easy to spot and replace.
+4. **Placeholders**: If customer name or sender name is missing, use exactly **{{CUSTOMER_NAME}}** or **{{SENDER_NAME}}** as visible placeholders. These placeholders must appear exactly as shown so they can be reliably detected and replaced.
 
 ## Output Format
 

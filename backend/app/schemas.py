@@ -187,11 +187,11 @@ class GenerateDraftRequest(BaseModel):
     )
     customer_name: str = Field(
         default="",
-        description="客户姓名，空则使用占位符 [Customer Name]",
+        description="客户姓名，空则使用占位符 {{CUSTOMER_NAME}}",
     )
     sender_name: str = Field(
         default="",
-        description="发送者姓名，空则使用占位符 [Your Name]",
+        description="发送者姓名，空则使用占位符 {{SENDER_NAME}}",
     )
 
 

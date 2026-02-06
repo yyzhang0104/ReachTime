@@ -85,6 +85,19 @@ async def health_check():
     return {"status": "ok", "message": "ReachTime API is running"}
 
 
+def _substitute_name_placeholders(text: str, customer_name: str, sender_name: str) -> str:
+    """Replace {{CUSTOMER_NAME}} / {{SENDER_NAME}} with real names.
+
+    If a name is empty or whitespace-only the corresponding placeholder is
+    left as-is so the user can spot it and fill it in manually.
+    """
+    if customer_name and customer_name.strip():
+        text = text.replace("{{CUSTOMER_NAME}}", customer_name.strip())
+    if sender_name and sender_name.strip():
+        text = text.replace("{{SENDER_NAME}}", sender_name.strip())
+    return text
+
+
 @app.post(
     "/api/generate_draft",
     response_model=GenerateDraftResponse,
@@ -101,8 +114,8 @@ async def health_check():
     - **communication_channel**: 沟通渠道，空则默认 Email。支持 Email/WhatsApp/WeChat/SMS 等
     - **crm_notes**: 客户备注，用于个性化文案
     - **target_language**: 目标语言风格，空则使用 professional business English
-    - **customer_name**: 客户姓名，空则使用占位符 [Customer Name]
-    - **sender_name**: 发送者姓名，空则使用占位符 [Your Name]
+    - **customer_name**: 客户姓名，空则使用占位符 {{CUSTOMER_NAME}}
+    - **sender_name**: 发送者姓名，空则使用占位符 {{SENDER_NAME}}
     """,
 )
 async def create_draft(request: GenerateDraftRequest) -> GenerateDraftResponse:
@@ -113,14 +126,22 @@ async def create_draft(request: GenerateDraftRequest) -> GenerateDraftResponse:
     content based on user intent, customer context, and channel preferences.
     """
     try:
+        # Privacy: keep real names local; never send them to OpenAI
+        real_customer_name = request.customer_name
+        real_sender_name = request.sender_name
+
         subject, content = generate_draft(
             user_intent=request.user_intent,
             communication_channel=request.communication_channel,
             crm_notes=request.crm_notes,
             target_language=request.target_language,
-            customer_name=request.customer_name,
-            sender_name=request.sender_name,
+            customer_name="",
+            sender_name="",
         )
+
+        # Replace placeholders with real names (server-side only)
+        subject = _substitute_name_placeholders(subject, real_customer_name, real_sender_name)
+        content = _substitute_name_placeholders(content, real_customer_name, real_sender_name)
 
         return GenerateDraftResponse(subject=subject, content=content)
 

@@ -37,11 +37,10 @@ A professional web application to help cross-timezone sales teams contact custom
 ## Features
 
 ### 1. Customer Profiles & Security
-- Multi-channel contact management (Email, WhatsApp, WeChat, SMS, Phone)
 - Country → Timezone auto-mapping with DST support
 - Preferred contact hours configuration
 - CRM notes with structured tags
-- **End-to-end encryption**: All data encrypted locally with AES-256 (WebCrypto + IndexedDB)
+- All data is encrypted locally (WebCrypto + IndexedDB)
 
 ### 2. Real-time Dashboard
 - Dynamic timezone header with Travel Mode
@@ -57,7 +56,7 @@ A professional web application to help cross-timezone sales teams contact custom
 
 ### 4. AI-Powered Communication
 - Generate personalized drafts via OpenAI API
-- Multiple drafts per customer (add/switch/rename/delete)
+- Multiple drafts per customer (add/switch/rename/delete/copy)
 - Channel-aware formatting (Email vs. IM)
 - Multi-language support
 - CRM context integration
@@ -85,11 +84,12 @@ Then open:
 ### Backend Setup
 
 ```bash
-cd backend
 
 # Create virtual environment
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+cd backend
 
 # Install dependencies
 pip install -r requirements.txt
@@ -151,7 +151,7 @@ CI runs automatically on push/PR to `main`:
 
 | Component | Technology |
 |-----------|------------|
-| Frontend | React 18, Vite, TypeScript |
+| Frontend | React, Vite, TypeScript |
 | Styling | Tailwind CSS, Framer Motion |
 | State | Zustand |
 | Encryption | WebCrypto API, IndexedDB |

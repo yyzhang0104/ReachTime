@@ -49,7 +49,7 @@ MOCK_HOLIDAYS = {
 
 MOCK_DRAFT_RESPONSE = {
     "subject": "Follow-up on Our Recent Discussion",
-    "content": "Dear [Customer Name],\n\nThank you for your time...\n\nBest regards,\n[Your Name]"
+    "content": "Dear {{CUSTOMER_NAME}},\n\nThank you for your time...\n\nBest regards,\n{{SENDER_NAME}}"
 }
 
 MOCK_PREFERENCES_RESPONSE = {
@@ -426,6 +426,86 @@ def test_generate_draft_im_channel(client):
         data = response.json()
         assert "subject" in data
         assert "content" in data
+
+
+def test_generate_draft_substitutes_names(client):
+    """When real names are provided, {{CUSTOMER_NAME}}/{{SENDER_NAME}} are replaced server-side."""
+
+    mock_client = create_mock_openai_client(json.dumps(MOCK_DRAFT_RESPONSE))
+
+    with patch("app.services.openai_client.OpenAI", return_value=mock_client):
+        response = client.post(
+            "/api/generate_draft",
+            json={
+                "user_intent": "Follow up on samples",
+                "communication_channel": "Email",
+                "crm_notes": "",
+                "target_language": "US English",
+                "customer_name": "John",
+                "sender_name": "Jane"
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        # Placeholders must be replaced
+        assert "{{CUSTOMER_NAME}}" not in data["content"]
+        assert "{{SENDER_NAME}}" not in data["content"]
+        assert "John" in data["content"]
+        assert "Jane" in data["content"]
+
+
+def test_generate_draft_keeps_placeholders_when_names_empty(client):
+    """When names are empty, placeholders remain so the user can fill them in."""
+
+    mock_client = create_mock_openai_client(json.dumps(MOCK_DRAFT_RESPONSE))
+
+    with patch("app.services.openai_client.OpenAI", return_value=mock_client):
+        response = client.post(
+            "/api/generate_draft",
+            json={
+                "user_intent": "Follow up on samples",
+                "communication_channel": "Email",
+                "crm_notes": "",
+                "target_language": "US English",
+                "customer_name": "",
+                "sender_name": ""
+            }
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "{{CUSTOMER_NAME}}" in data["content"]
+        assert "{{SENDER_NAME}}" in data["content"]
+
+
+def test_generate_draft_names_not_sent_to_openai(client):
+    """Verify the system prompt sent to OpenAI does NOT contain the real names."""
+
+    mock_client = create_mock_openai_client(json.dumps(MOCK_DRAFT_RESPONSE))
+
+    with patch("app.services.openai_client.OpenAI", return_value=mock_client):
+        response = client.post(
+            "/api/generate_draft",
+            json={
+                "user_intent": "Follow up on samples",
+                "communication_channel": "Email",
+                "crm_notes": "",
+                "target_language": "US English",
+                "customer_name": "Alejandro",
+                "sender_name": "Beatrix"
+            }
+        )
+
+        assert response.status_code == 200
+
+        # Inspect what was sent to the mock OpenAI client
+        call_args = mock_client.chat.completions.create.call_args
+        messages = call_args.kwargs.get("messages") or call_args[1].get("messages")
+        all_message_text = " ".join(m["content"] for m in messages)
+
+        assert "Alejandro" not in all_message_text, "Real customer name leaked to OpenAI"
+        assert "Beatrix" not in all_message_text, "Real sender name leaked to OpenAI"
 
 
 def test_generate_draft_missing_intent(client):
